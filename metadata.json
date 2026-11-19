@@ -1,0 +1,6 @@
+{
+  "name": "FutureMe AI",
+  "description": "Meet the person you're becoming — an AI-powered future-self visualization companion, vision board, letter generator, and goal roadmap workspace.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
