@@ -1,4 +1,4 @@
-import { handleChat, ServerRequest, ServerResponse } from './_lib/gemini';
+import { handleChat, type ServerRequest, type ServerResponse } from './_lib/gemini.js';
 
 export default async function handler(req: ServerRequest, res: ServerResponse): Promise<void> {
   await handleChat(req, res);

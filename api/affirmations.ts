@@ -1,4 +1,4 @@
-import { handleAffirmations, ServerRequest, ServerResponse } from './_lib/gemini';
+import { handleAffirmations, type ServerRequest, type ServerResponse } from './_lib/gemini.js';
 
 export default async function handler(req: ServerRequest, res: ServerResponse): Promise<void> {
   await handleAffirmations(req, res);

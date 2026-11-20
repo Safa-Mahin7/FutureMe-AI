@@ -9,7 +9,7 @@ import {
   handleHealth,
   handleLetter,
   handleRoadmap,
-} from './api/_lib/gemini';
+} from './api/_lib/gemini.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
