@@ -19,6 +19,32 @@ export function summarizeVisions(visions: VisionItem[]): string {
     .join('\n');
 }
 
+async function parseJsonResponse<T>(response: Response, fallbackError: string): Promise<T> {
+  const rawText = await response.text();
+  let parsed: (T & { error?: string }) | null = null;
+
+  if (rawText.trim()) {
+    try {
+      parsed = JSON.parse(rawText) as T & { error?: string };
+    } catch {
+      if (!response.ok) {
+        throw new Error(`${fallbackError} (HTTP ${response.status})`);
+      }
+      throw new Error('Received an unexpected non-JSON response from the server.');
+    }
+  }
+
+  if (!response.ok) {
+    throw new Error(parsed?.error || `${fallbackError} (HTTP ${response.status})`);
+  }
+
+  if (!parsed) {
+    throw new Error(fallbackError);
+  }
+
+  return parsed;
+}
+
 export async function streamFutureSelfChat(params: {
   messages: Array<{ role: 'user' | 'assistant'; content: string }>;
   profile: FutureSelfProfile | null;
@@ -28,7 +54,7 @@ export async function streamFutureSelfChat(params: {
   signal?: AbortSignal;
 }): Promise<string> {
   const timeoutController = new AbortController();
-  const timeoutId = setTimeout(() => timeoutController.abort(), 45000);
+  const timeoutId = setTimeout(() => timeoutController.abort(), 35000);
 
   const onExternalAbort = () => timeoutController.abort();
   params.signal?.addEventListener('abort', onExternalAbort);
@@ -46,21 +72,12 @@ export async function streamFutureSelfChat(params: {
       }),
     });
 
-    if (!response.ok) {
-      let errorMessage = 'Failed to reach your Future Self.';
-      try {
-        const errData = await response.json();
-        if (errData?.error) errorMessage = errData.error;
-      } catch {
-        // fallback
-      }
-      throw new Error(errorMessage);
-    }
-
     const contentType = response.headers.get('content-type') || '';
-    if (contentType.includes('application/json')) {
-      const data = (await response.json()) as { text?: string; error?: string };
-      if (data.error) throw new Error(data.error);
+    if (!response.ok || !contentType.includes('text/event-stream')) {
+      const data = await parseJsonResponse<{ text?: string; error?: string }>(
+        response,
+        'Failed to reach your Future Self.'
+      );
       if (!data.text?.trim()) {
         throw new Error('Your Future Self returned an empty response. Please try again.');
       }
@@ -148,11 +165,10 @@ export async function generateFutureLetter(params: {
     body: JSON.stringify(params),
   });
 
-  const data = await response.json();
-  if (!response.ok) {
-    throw new Error(data?.error || 'Could not generate your letter.');
-  }
-  return data as { title: string; content: string };
+  return parseJsonResponse<{ title: string; content: string }>(
+    response,
+    'Could not generate your letter.'
+  );
 }
 
 export async function generatePersonalizedAffirmations(params: {
@@ -165,11 +181,11 @@ export async function generatePersonalizedAffirmations(params: {
     body: JSON.stringify(params),
   });
 
-  const data = await response.json();
-  if (!response.ok) {
-    throw new Error(data?.error || 'Could not generate affirmations.');
-  }
-  return (data.affirmations || []) as Array<{ text: string; focusArea: string }>;
+  const data = await parseJsonResponse<{ affirmations?: Array<{ text: string; focusArea: string }> }>(
+    response,
+    'Could not generate affirmations.'
+  );
+  return data.affirmations || [];
 }
 
 export async function generateGoalRoadmap(params: {
@@ -187,11 +203,10 @@ export async function generateGoalRoadmap(params: {
     body: JSON.stringify(params),
   });
 
-  const data = await response.json();
-  if (!response.ok) {
-    throw new Error(data?.error || 'Could not generate your action roadmap.');
-  }
-  return data;
+  return parseJsonResponse<{
+    milestones: Array<{ title: string; tip: string; targetDate: string }>;
+    encouragement: string;
+  }>(response, 'Could not generate your action roadmap.');
 }
 
 export async function fetchGoalAdvice(params: {
@@ -207,9 +222,9 @@ export async function fetchGoalAdvice(params: {
     body: JSON.stringify(params),
   });
 
-  const data = await response.json();
-  if (!response.ok) {
-    throw new Error(data?.error || 'Could not fetch advice right now.');
-  }
+  const data = await parseJsonResponse<{ advice?: string }>(
+    response,
+    'Could not fetch advice right now.'
+  );
   return data.advice || '';
 }
